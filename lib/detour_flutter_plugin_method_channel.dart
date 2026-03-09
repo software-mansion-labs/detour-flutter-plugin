@@ -1,19 +1,78 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'detour_flutter_plugin_platform_interface.dart';
+import 'src/models.dart';
 
-/// An implementation of [DetourFlutterPluginPlatform] that uses method channels.
 class MethodChannelDetourFlutterPlugin extends DetourFlutterPluginPlatform {
-  /// The method channel used to interact with the native platform.
-  @visibleForTesting
   final methodChannel = const MethodChannel('detour_flutter_plugin');
+  final _eventChannel = const EventChannel('detour_flutter_plugin/links');
+
+  Stream<DetourResult>? _linkStream;
 
   @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>(
-      'getPlatformVersion',
+  Stream<DetourResult> get linkStream {
+    _linkStream ??= _eventChannel
+        .receiveBroadcastStream()
+        .map((event) => DetourResult.fromMap(event as Map));
+    return _linkStream!;
+  }
+
+  @override
+  Future<void> configure(DetourConfig config) async {
+    await methodChannel.invokeMethod<void>('configure', {
+      'apiKey': config.apiKey,
+      'appID': config.appID,
+      'shouldUseClipboard': config.shouldUseClipboard,
+      'linkProcessingMode': config.linkProcessingMode.value,
+    });
+  }
+
+  @override
+  Future<DetourResult> resolveInitialLink() async {
+    final result = await methodChannel.invokeMapMethod<String, dynamic>(
+      'resolveInitialLink',
     );
-    return version;
+    return DetourResult.fromMap(result ?? {});
+  }
+
+  @override
+  Future<DetourResult> processLink(String url) async {
+    final result = await methodChannel.invokeMapMethod<String, dynamic>(
+      'processLink',
+      {'url': url},
+    );
+    return DetourResult.fromMap(result ?? {});
+  }
+
+  @override
+  Future<void> resetSession({bool allowDeferredRetry = false}) async {
+    await methodChannel.invokeMethod<void>('resetSession', {
+      'allowDeferredRetry': allowDeferredRetry,
+    });
+  }
+
+  @override
+  Future<void> mountAnalytics() async {
+    await methodChannel.invokeMethod<void>('mountAnalytics');
+  }
+
+  @override
+  Future<void> unmountAnalytics() async {
+    await methodChannel.invokeMethod<void>('unmountAnalytics');
+  }
+
+  @override
+  Future<void> logEvent(String eventName, {Map<String, dynamic>? data}) async {
+    await methodChannel.invokeMethod<void>('logEvent', {
+      'eventName': eventName,
+      'data': data,
+    });
+  }
+
+  @override
+  Future<void> logRetention(String eventName) async {
+    await methodChannel.invokeMethod<void>('logRetention', {
+      'eventName': eventName,
+    });
   }
 }
