@@ -45,26 +45,12 @@ class MethodChannelDetourFlutterPlugin extends DetourFlutterPluginPlatform {
   }
 
   @override
-  Future<void> resetSession({bool allowDeferredRetry = false}) async {
-    await methodChannel.invokeMethod<void>('resetSession', {
-      'allowDeferredRetry': allowDeferredRetry,
-    });
-  }
-
-  @override
-  Future<void> mountAnalytics() async {
-    await methodChannel.invokeMethod<void>('mountAnalytics');
-  }
-
-  @override
-  Future<void> unmountAnalytics() async {
-    await methodChannel.invokeMethod<void>('unmountAnalytics');
-  }
-
-  @override
-  Future<void> logEvent(String eventName, {Map<String, dynamic>? data}) async {
+  Future<void> logEvent(
+    DetourEventName eventName, {
+    Map<String, dynamic>? data,
+  }) async {
     await methodChannel.invokeMethod<void>('logEvent', {
-      'eventName': eventName,
+      'eventName': eventName.rawValue,
       'data': data,
     });
   }

@@ -5,21 +5,22 @@
 Pod::Spec.new do |s|
   s.name             = 'detour_flutter_plugin'
   s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.summary          = 'Flutter bridge for Detour native SDKs.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+Flutter bridge plugin for Detour deferred deep links and analytics.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://godetour.dev'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Software Mansion' => 'contact@godetour.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'Classes/DetourFlutterPlugin.swift'
   s.dependency 'Flutter'
+  s.dependency 'Detour', '>= 0.1.0'
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
-  s.swift_version = '5.0'
+  s.swift_version = '5.5'
 
   # If your plugin requires a privacy manifest, for example if it uses any
   # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your

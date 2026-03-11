@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import Detour
 
 public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLifeCycleDelegate {
     private var config: DetourConfig?
@@ -37,6 +38,8 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
         guard let config = self.config, let sink = self.eventSink else { return false }
+        if config.linkProcessingMode != .all { return false }
+
         Task { @MainActor [weak self] in
             guard let self = self else { return }
             let result = await Detour.shared.processLink(url, config: config)
@@ -50,9 +53,12 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
         continue userActivity: NSUserActivity,
         restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
     ) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
         guard let config = self.config,
               let sink = self.eventSink,
               let url = userActivity.webpageURL else { return false }
+        if config.linkProcessingMode == .deferredOnly { return false }
+
         Task { @MainActor [weak self] in
             guard let self = self else { return }
             let result = await Detour.shared.processLink(url, config: config)
@@ -103,30 +109,6 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 result(self.detourResultToMap(r))
             }
 
-        case "resetSession":
-            let args = call.arguments as? [String: Any]
-            let allowDeferredRetry = args?["allowDeferredRetry"] as? Bool ?? false
-            Task { @MainActor in
-                Detour.shared.resetSession(allowDeferredRetry: allowDeferredRetry)
-            }
-            result(nil)
-
-        case "mountAnalytics":
-            guard let config = self.config else {
-                result(FlutterError(code: "NOT_CONFIGURED", message: "Call configure() first", details: nil))
-                return
-            }
-            Task { @MainActor in
-                Detour.shared.mountAnalytics(config: config)
-            }
-            result(nil)
-
-        case "unmountAnalytics":
-            Task { @MainActor in
-                Detour.shared.unmountAnalytics()
-            }
-            result(nil)
-
         case "logEvent":
             guard let args = call.arguments as? [String: Any],
                   let eventName = args["eventName"] as? String else {
@@ -134,8 +116,12 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 return
             }
             let data = args["data"] as? [String: Any]
+            guard let typedEventName = DetourEventName(rawValue: eventName) else {
+                result(FlutterError(code: "UNSUPPORTED_EVENT", message: "Only predefined DetourEventName values are supported", details: nil))
+                return
+            }
             Task { @MainActor in
-                DetourAnalytics.logEvent(eventName, data: data)
+                DetourAnalytics.logEvent(typedEventName, data: data)
             }
             result(nil)
 
