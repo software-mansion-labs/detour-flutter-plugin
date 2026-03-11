@@ -74,7 +74,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _logEvent() async {
     await _plugin.logEvent(
-      DetourEventName.purchase.rawValue,
+      DetourEventName.purchase,
       data: {'value': 9.99, 'currency': 'USD'},
     );
     setState(() => _status = 'logEvent sent');
@@ -83,16 +83,6 @@ class _MyAppState extends State<MyApp> {
   Future<void> _logRetention() async {
     await _plugin.logRetention('home_screen_viewed');
     setState(() => _status = 'logRetention sent');
-  }
-
-  Future<void> _mountAnalytics() async {
-    await _plugin.mountAnalytics();
-    setState(() => _status = 'Analytics mounted');
-  }
-
-  Future<void> _resetSession() async {
-    await _plugin.resetSession(allowDeferredRetry: true);
-    setState(() => _status = 'Session reset');
   }
 
   @override
@@ -122,20 +112,12 @@ class _MyAppState extends State<MyApp> {
                     child: const Text('Process Test Link'),
                   ),
                   ElevatedButton(
-                    onPressed: _mountAnalytics,
-                    child: const Text('Mount Analytics'),
-                  ),
-                  ElevatedButton(
                     onPressed: _logEvent,
                     child: const Text('Log Event'),
                   ),
                   ElevatedButton(
                     onPressed: _logRetention,
                     child: const Text('Log Retention'),
-                  ),
-                  ElevatedButton(
-                    onPressed: _resetSession,
-                    child: const Text('Reset Session'),
                   ),
                 ],
               ),

@@ -34,19 +34,7 @@ abstract class DetourFlutterPluginPlatform extends PlatformInterface {
     throw UnimplementedError('linkStream has not been implemented.');
   }
 
-  Future<void> resetSession({bool allowDeferredRetry = false}) {
-    throw UnimplementedError('resetSession() has not been implemented.');
-  }
-
-  Future<void> mountAnalytics() {
-    throw UnimplementedError('mountAnalytics() has not been implemented.');
-  }
-
-  Future<void> unmountAnalytics() {
-    throw UnimplementedError('unmountAnalytics() has not been implemented.');
-  }
-
-  Future<void> logEvent(String eventName, {Map<String, dynamic>? data}) {
+  Future<void> logEvent(DetourEventName eventName, {Map<String, dynamic>? data}) {
     throw UnimplementedError('logEvent() has not been implemented.');
   }
 

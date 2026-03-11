@@ -1,10 +1,8 @@
 package com.swmansion.detour
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
+import android.net.Uri
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -18,13 +16,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-
-data class DetourConfig(
-    val apiKey: String,
-    val appID: String,
-    val shouldUseClipboard: Boolean,
-    val linkProcessingMode: String
-)
+import com.swmansion.detour.analytics.DetourAnalytics
+import com.swmansion.detour.analytics.DetourEventNames
+import com.swmansion.detour.models.LinkProcessingMode
+import com.swmansion.detour.models.LinkResult
 
 class DetourFlutterPlugin :
     FlutterPlugin,
@@ -35,41 +30,27 @@ class DetourFlutterPlugin :
 
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
-    private lateinit var applicationContext: Context
-
-    private var config: DetourConfig? = null
-    private var storage: DetourStorage? = null
-    private val analytics = DetourAnalytics()
     private var eventSink: EventChannel.EventSink? = null
+
     private var activity: Activity? = null
     private var activityBinding: ActivityPluginBinding? = null
-    private var isFirstSessionHandled = false
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private var isConfigured = false
+
+    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = binding.applicationContext
         methodChannel = MethodChannel(binding.binaryMessenger, "detour_flutter_plugin")
         methodChannel.setMethodCallHandler(this)
+
         eventChannel = EventChannel(binding.binaryMessenger, "detour_flutter_plugin/links")
         eventChannel.setStreamHandler(this)
-
-        // Collect user agent on main thread
-        mainHandler.post {
-            try {
-                val ua = android.webkit.WebView(applicationContext).settings.userAgentString ?: ""
-                DetourFingerprint.setCachedUserAgent(ua)
-            } catch (_: Exception) {}
-        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
     }
-
-    // MARK: - ActivityAware
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
@@ -95,24 +76,20 @@ class DetourFlutterPlugin :
         activityBinding = null
     }
 
-    // Intercept runtime deep links
     override fun onNewIntent(intent: Intent): Boolean {
-        val data = intent.data ?: return false
-        val rawUrl = data.toString()
-        if (rawUrl.isEmpty() || rawUrl == "about:blank") return false
-
-        val cfg = config ?: return false
+        if (!isConfigured) return false
         val sink = eventSink ?: return false
 
-        scope.launch(Dispatchers.IO) {
-            val parsed = DetourNetwork.parseUrl(rawUrl)
-            val resultMap = buildResultMap(parsed)
-            mainHandler.post { sink.success(resultMap) }
+        scope.launch {
+            when (val nativeResult = Detour.processLink(intent)) {
+                is LinkResult.Error -> {
+                    sink.error("NATIVE_ERROR", nativeResult.exception.message, null)
+                }
+                else -> sink.success(toFlutterMap(nativeResult))
+            }
         }
         return true
     }
-
-    // MARK: - EventChannel.StreamHandler
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
@@ -122,109 +99,125 @@ class DetourFlutterPlugin :
         eventSink = null
     }
 
-    // MARK: - MethodCallHandler
-
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "configure" -> {
                 val args = call.arguments as? Map<*, *>
                 val apiKey = args?.get("apiKey") as? String
                 val appID = args?.get("appID") as? String
-                if (apiKey == null || appID == null) {
+                if (apiKey.isNullOrBlank() || appID.isNullOrBlank()) {
                     result.error("INVALID_ARGS", "apiKey and appID are required", null)
                     return
                 }
-                val shouldUseClipboard = args["shouldUseClipboard"] as? Boolean ?: true
-                val linkProcessingMode = args["linkProcessingMode"] as? String ?: "all"
-                config = DetourConfig(apiKey, appID, shouldUseClipboard, linkProcessingMode)
-                storage = DetourStorage(applicationContext)
+
+                val modeRaw = (args["linkProcessingMode"] as? String) ?: "all"
+                val mode = when (modeRaw) {
+                    "web-only" -> LinkProcessingMode.WEB_ONLY
+                    "deferred-only" -> LinkProcessingMode.DEFERRED_ONLY
+                    else -> LinkProcessingMode.ALL
+                }
+
+                val appContext = activity?.applicationContext
+                if (appContext == null) {
+                    result.error("NO_ACTIVITY", "Plugin requires an attached Activity to configure", null)
+                    return
+                }
+
+                val config = DetourConfig(
+                    apiKey = apiKey,
+                    appId = appID,
+                    linkProcessingMode = mode,
+                    storage = null,
+                )
+
+                Detour.initialize(appContext, config)
+                isConfigured = true
                 result.success(null)
             }
 
             "resolveInitialLink" -> {
-                val cfg = config
-                val store = storage
-                if (cfg == null || store == null) {
+                if (!isConfigured) {
                     result.error("NOT_CONFIGURED", "Call configure() first", null)
                     return
                 }
 
-                scope.launch(Dispatchers.IO) {
-                    val resultData = resolveInitialLinkInternal(cfg, store)
-                    mainHandler.post { result.success(resultData) }
+                val initialIntent = activity?.intent ?: Intent()
+                scope.launch {
+                    when (val nativeResult = Detour.processLink(initialIntent)) {
+                        is LinkResult.Error -> {
+                            result.error("NATIVE_ERROR", nativeResult.exception.message, null)
+                        }
+                        else -> result.success(toFlutterMap(nativeResult))
+                    }
                 }
             }
 
             "processLink" -> {
-                val args = call.arguments as? Map<*, *>
-                val url = args?.get("url") as? String
-                if (url == null) {
-                    result.error("INVALID_ARGS", "url is required", null)
-                    return
-                }
-                val cfg = config
-                scope.launch(Dispatchers.IO) {
-                    val parsed = DetourNetwork.parseUrl(url)
-                    val resultMap = buildResultMap(parsed)
-                    // If web URL with single-segment path, try resolving short link
-                    val finalMap = if (cfg != null && shouldResolveShortLink(parsed)) {
-                        val resolved = DetourNetwork.resolveShortLink(cfg.apiKey, cfg.appID, url)
-                        if (resolved != null) buildResultMap(resolved) else resultMap
-                    } else {
-                        resultMap
-                    }
-                    mainHandler.post { result.success(finalMap) }
-                }
-            }
-
-            "resetSession" -> {
-                val args = call.arguments as? Map<*, *>
-                val allowDeferredRetry = args?.get("allowDeferredRetry") as? Boolean ?: false
-                isFirstSessionHandled = false
-                if (allowDeferredRetry) {
-                    storage?.resetFirstEntrance()
-                }
-                result.success(null)
-            }
-
-            "mountAnalytics" -> {
-                val cfg = config
-                val store = storage
-                if (cfg == null || store == null) {
+                if (!isConfigured) {
                     result.error("NOT_CONFIGURED", "Call configure() first", null)
                     return
                 }
-                val deviceId = store.getOrCreateDeviceId()
-                analytics.mount(cfg.apiKey, cfg.appID, deviceId)
-                result.success(null)
-            }
 
-            "unmountAnalytics" -> {
-                analytics.unmount()
-                result.success(null)
+                val args = call.arguments as? Map<*, *>
+                val rawUrl = args?.get("url") as? String
+                if (rawUrl.isNullOrBlank()) {
+                    result.error("INVALID_ARGS", "url is required", null)
+                    return
+                }
+
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl))
+                scope.launch {
+                    when (val nativeResult = Detour.processLink(intent)) {
+                        is LinkResult.Error -> {
+                            result.error("NATIVE_ERROR", nativeResult.exception.message, null)
+                        }
+                        else -> result.success(toFlutterMap(nativeResult))
+                    }
+                }
             }
 
             "logEvent" -> {
+                if (!isConfigured) {
+                    result.error("NOT_CONFIGURED", "Call configure() first", null)
+                    return
+                }
+
                 val args = call.arguments as? Map<*, *>
                 val eventName = args?.get("eventName") as? String
-                if (eventName == null) {
+                if (eventName.isNullOrBlank()) {
                     result.error("INVALID_ARGS", "eventName is required", null)
                     return
                 }
-                @Suppress("UNCHECKED_CAST")
-                val data = args["data"] as? Map<String, Any>
-                analytics.logEvent(eventName, data)
+
+                val enumValue = DetourEventNames.entries.firstOrNull { it.eventName == eventName }
+                if (enumValue == null) {
+                    result.error(
+                        "UNSUPPORTED_EVENT",
+                        "Android SDK supports predefined DetourEventNames only. Received: $eventName",
+                        null,
+                    )
+                    return
+                }
+
+                val data = args["data"]
+                DetourAnalytics.logEvent(enumValue, data)
                 result.success(null)
             }
 
             "logRetention" -> {
+                if (!isConfigured) {
+                    result.error("NOT_CONFIGURED", "Call configure() first", null)
+                    return
+                }
+
                 val args = call.arguments as? Map<*, *>
                 val eventName = args?.get("eventName") as? String
-                if (eventName == null) {
+                if (eventName.isNullOrBlank()) {
                     result.error("INVALID_ARGS", "eventName is required", null)
                     return
                 }
-                analytics.logRetention(eventName)
+
+                DetourAnalytics.logRetention(eventName)
                 result.success(null)
             }
 
@@ -232,87 +225,32 @@ class DetourFlutterPlugin :
         }
     }
 
-    // MARK: - Helpers
-
-    private suspend fun resolveInitialLinkInternal(
-        cfg: DetourConfig,
-        store: DetourStorage
-    ): Map<String, Any?> {
-        if (isFirstSessionHandled) {
-            return emptyResultMap()
-        }
-
-        val mode = cfg.linkProcessingMode
-
-        // Check for runtime deep link in current activity intent
-        if (mode != "deferred-only") {
-            val intentData = activity?.intent?.data
-            if (intentData != null) {
-                val rawUrl = intentData.toString()
-                if (rawUrl.isNotEmpty() && rawUrl != "about:blank") {
-                    store.markFirstEntrance()
-                    isFirstSessionHandled = true
-                    val parsed = DetourNetwork.parseUrl(rawUrl)
-                    return buildResultMap(parsed)
-                }
+    private fun toFlutterMap(nativeResult: LinkResult): Map<String, Any?> {
+        return when (nativeResult) {
+            is LinkResult.Success -> {
+                mapOf(
+                    "processed" to true,
+                    "link" to mapOf(
+                        "url" to nativeResult.url,
+                        "route" to nativeResult.route,
+                        "pathname" to nativeResult.pathname,
+                        "params" to nativeResult.params,
+                        "type" to when (nativeResult.type) {
+                            com.swmansion.detour.models.LinkType.DEFERRED -> "deferred"
+                            com.swmansion.detour.models.LinkType.VERIFIED -> "verified"
+                            com.swmansion.detour.models.LinkType.SCHEME -> "scheme"
+                        },
+                    ),
+                )
+            }
+            is LinkResult.NoLink,
+            is LinkResult.NotFirstLaunch,
+            is LinkResult.Error -> {
+                mapOf(
+                    "processed" to true,
+                    "link" to null,
+                )
             }
         }
-
-        // Deferred: only on first entrance
-        if (!store.isFirstEntrance()) {
-            isFirstSessionHandled = true
-            return emptyResultMap()
-        }
-
-        store.markFirstEntrance()
-        isFirstSessionHandled = true
-
-        // Try deterministic install referrer first
-        val clickId = getInstallReferrerClickId(cfg)
-        if (clickId != null) {
-            val parsed = DetourNetwork.parseUrl(clickId, typeOverride = "deferred")
-            return buildResultMap(parsed)
-        }
-
-        // Probabilistic fingerprint
-        val fingerprint = DetourFingerprint.buildFingerprint(applicationContext)
-        val matched = DetourNetwork.matchLink(cfg.apiKey, cfg.appID, fingerprint)
-        return if (matched != null) buildResultMap(matched) else emptyResultMap()
-    }
-
-    private fun getInstallReferrerClickId(cfg: DetourConfig): String? {
-        var result: String? = null
-        val latch = java.util.concurrent.CountDownLatch(1)
-        DetourFingerprint.getInstallReferrerClickId(applicationContext) { clickId ->
-            result = clickId
-            latch.countDown()
-        }
-        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-        return result
-    }
-
-    private fun shouldResolveShortLink(parsed: DetourNetwork.DetourResultData): Boolean {
-        if (parsed.type == "scheme") return false
-        val url = try { java.net.URI(parsed.url).toURL() } catch (e: Exception) { return false }
-        val path = url.path ?: return false
-        val segments = path.split("/").filter { it.isNotEmpty() }
-        return segments.size == 1
-    }
-
-    private fun buildResultMap(data: DetourNetwork.DetourResultData): Map<String, Any?> {
-        return mapOf(
-            "processed" to true,
-            "link" to mapOf(
-                "url" to data.url,
-                "route" to data.route,
-                "pathname" to data.pathname,
-                "params" to data.params,
-                "type" to data.type
-            )
-        )
-    }
-
-    private fun emptyResultMap(): Map<String, Any?> {
-        return mapOf("processed" to true, "link" to null)
     }
 }
