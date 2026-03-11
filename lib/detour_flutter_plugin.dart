@@ -2,6 +2,7 @@ import 'src/models.dart';
 import 'detour_flutter_plugin_platform_interface.dart';
 
 export 'src/models.dart';
+export 'src/detour_service.dart';
 
 class DetourFlutterPlugin {
   Future<void> configure(DetourConfig config) {

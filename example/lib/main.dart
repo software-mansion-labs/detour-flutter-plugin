@@ -1,10 +1,14 @@
-import 'dart:async';
-
+import 'package:detour_flutter_plugin/detour_flutter_plugin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:detour_flutter_plugin/detour_flutter_plugin.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Local fallback for CI/tests without .env file.
+  }
   runApp(const MyApp());
 }
 
@@ -16,72 +20,104 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _plugin = DetourFlutterPlugin();
+  final _detourService = DetourService();
 
-  DetourResult? _initialResult;
-  DetourResult? _runtimeResult;
+  DetourIntent? _initialIntent;
+  DetourIntent? _runtimeIntent;
+  DetourIntent? _manualIntent;
   DetourResult? _processedResult;
   String _status = 'Initializing...';
-  StreamSubscription<DetourResult>? _linkSub;
 
   @override
   void initState() {
     super.initState();
+    _detourService.addListener(_onDetourChanged);
     _init();
   }
 
   Future<void> _init() async {
     try {
-      await _plugin.configure(
-        const DetourConfig(
-          apiKey: 'YOUR_API_KEY',
-          appID: 'YOUR_APP_ID',
+      await _detourService.start(
+        DetourConfig(
+          apiKey: dotenv.env['DETOUR_API_KEY'] ?? 'YOUR_API_KEY',
+          appID: dotenv.env['DETOUR_APP_ID'] ?? 'YOUR_APP_ID',
           shouldUseClipboard: true,
           linkProcessingMode: LinkProcessingMode.all,
         ),
       );
 
-      final initial = await _plugin.resolveInitialLink();
-      setState(() {
-        _initialResult = initial;
-        _status = 'Ready';
-      });
-
-      _linkSub = _plugin.linkStream.listen((result) {
-        setState(() => _runtimeResult = result);
-      });
+      if (mounted &&
+          _detourService.isInitialLinkProcessed &&
+          _status == 'Initializing...') {
+        setState(() => _status = 'Ready');
+      }
     } on PlatformException catch (e) {
+      if (!mounted) return;
       setState(() => _status = 'Error: ${e.message}');
+    }
+  }
+
+  void _onDetourChanged() {
+    if (!mounted) return;
+
+    final intent = _detourService.pendingIntent;
+    if (intent != null) {
+      setState(() {
+        switch (intent.source) {
+          case DetourIntentSource.initial:
+            _initialIntent = intent;
+            break;
+          case DetourIntentSource.runtime:
+            _runtimeIntent = intent;
+            break;
+          case DetourIntentSource.manual:
+            _manualIntent = intent;
+            break;
+        }
+        _status = 'Handled ${intent.source.name} intent';
+      });
+      _detourService.consumePendingIntent();
+      return;
+    }
+
+    if (_detourService.isInitialLinkProcessed && _status == 'Initializing...') {
+      setState(() => _status = 'Ready');
     }
   }
 
   @override
   void dispose() {
-    _linkSub?.cancel();
+    _detourService.removeListener(_onDetourChanged);
+    _detourService.dispose();
     super.dispose();
   }
 
   Future<void> _processTestLink() async {
     try {
-      final result = await _plugin.processLink(
-        'https://godetour.dev/abc123?campaign=test',
+      final result = await _detourService.processLink(
+        // Use a test URL that matches your Detour dashboard setup for testing.
+        'https://godetour.link/abc123?campaign=test',
       );
+      if (!mounted) return;
       setState(() => _processedResult = result);
     } on PlatformException catch (e) {
+      if (!mounted) return;
       setState(() => _status = 'processLink error: ${e.message}');
     }
   }
 
   Future<void> _logEvent() async {
-    await _plugin.logEvent(
+    await _detourService.logEvent(
       DetourEventName.purchase,
       data: {'value': 9.99, 'currency': 'USD'},
     );
+    if (!mounted) return;
     setState(() => _status = 'logEvent sent');
   }
 
   Future<void> _logRetention() async {
-    await _plugin.logRetention('home_screen_viewed');
+    await _detourService.logRetention('home_screen_viewed');
+    if (!mounted) return;
     setState(() => _status = 'logRetention sent');
   }
 
@@ -96,12 +132,18 @@ class _MyAppState extends State<MyApp> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Status: $_status'),
+              const SizedBox(height: 8),
+              Text(
+                'Initial processed: ${_detourService.isInitialLinkProcessed}',
+              ),
               const SizedBox(height: 16),
-              _ResultCard('Initial Link', _initialResult),
+              _IntentCard('Initial Intent', _initialIntent),
               const SizedBox(height: 8),
-              _ResultCard('Runtime Link', _runtimeResult),
+              _IntentCard('Runtime Intent', _runtimeIntent),
               const SizedBox(height: 8),
-              _ResultCard('Processed Link', _processedResult),
+              _IntentCard('Manual Intent', _manualIntent),
+              const SizedBox(height: 8),
+              _ResultCard('processLink() Result', _processedResult),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -123,6 +165,39 @@ class _MyAppState extends State<MyApp> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IntentCard extends StatelessWidget {
+  const _IntentCard(this.title, this.intent);
+
+  final String title;
+  final DetourIntent? intent;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = intent;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (value == null)
+              const Text('None')
+            else ...[
+              Text('source: ${value.source.name}'),
+              Text('type: ${value.link.type.name}'),
+              Text('route: ${value.link.route}'),
+              Text('pathname: ${value.link.pathname}'),
+              Text('params: ${value.link.params}'),
+              Text('url: ${value.link.url}'),
+            ],
+          ],
         ),
       ),
     );
