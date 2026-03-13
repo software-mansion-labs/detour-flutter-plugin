@@ -92,7 +92,7 @@ This example demonstrates a full integration of `detour_flutter_plugin` with the
      - `android/app/src/main/AndroidManifest.xml` (`<data android:scheme="...">`)
      - `ios/Runner/Info.plist` (`CFBundleURLSchemes`)
 
-4. (Optionaly) To test `Process Test Link`, modify `_processTestLink` function in `example/lib/main.dart` with a link that matches your Detour dashboard setup.
+4. (Optionaly) To test `Process Test Link`, modify the `_processTestLink` function in `example/lib/main.dart` with a link that matches your Detour dashboard setup.
 
 5. Install dependencies and run:
    ```shell
