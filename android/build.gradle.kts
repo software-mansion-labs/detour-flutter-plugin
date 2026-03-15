@@ -1,5 +1,5 @@
 group = "com.swmansion.detour"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
 
 buildscript {
     val kotlinVersion = "2.2.20"
@@ -16,7 +16,6 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenLocal()
         google()
         mavenCentral()
     }

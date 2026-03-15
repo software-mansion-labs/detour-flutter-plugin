@@ -1,4 +1,4 @@
-## 0.0.1
+## 0.1.0
 
 * Refactor plugin into a thin bridge over native Detour SDKs.
 * Android now consumes `com.swmansion:detour` instead of embedded native implementation.
