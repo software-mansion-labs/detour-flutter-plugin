@@ -30,12 +30,6 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
 
-  # Local fallback before Detour pod is published.
-  detour_sdk_path = File.expand_path('../../../ios-detour', __dir__)
-  if File.exist?(File.join(detour_sdk_path, 'Detour.podspec'))
-    pod 'Detour', :path => detour_sdk_path
-  end
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

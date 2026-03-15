@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'detour_flutter_plugin'
-  s.version          = '0.0.1'
+  s.version          = '0.1.0'
   s.summary          = 'Flutter bridge for Detour native SDKs.'
   s.description      = <<-DESC
 Flutter bridge plugin for Detour deferred deep links and analytics.

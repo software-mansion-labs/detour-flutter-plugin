@@ -9,7 +9,15 @@ Flutter SDK for handling deferred deep links with native Detour SDKs on Android 
 Check out our documentation page for integration guides and API details:
 
 - Docs home: [https://docs.swmansion.com/detour/docs/](https://docs.swmansion.com/detour/docs/)
-- Flutter installation guide: [https://docs.swmansion.com/detour/docs/flutter-sdk/flutter-sdk-installation](https://docs.swmansion.com/detour/docs/flutter-sdk/flutter-sdk-installation)
+- Flutter installation guide: [https://docs.swmansion.com/detour/docs/sdk/flutter/sdk-installation](https://docs.swmansion.com/detour/docs/sdk/flutter/sdk-installation)
+
+## Other Detour SDKs
+
+Detour is also available for other app stacks:
+
+- Android SDK: [https://github.com/software-mansion-labs/android-detour](https://github.com/software-mansion-labs/android-detour)
+- iOS SDK: [https://github.com/software-mansion-labs/ios-detour](https://github.com/software-mansion-labs/ios-detour)
+- React Native SDK: [https://github.com/software-mansion-labs/react-native-detour](https://github.com/software-mansion-labs/react-native-detour)
 
 ## Create account on platform
 
@@ -23,7 +31,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  detour_flutter_plugin: ^0.0.1
+  detour_flutter_plugin: ^0.1.0
 ```
 
 Install dependencies:
@@ -41,25 +49,11 @@ This plugin is a bridge over native Detour SDK artifacts:
 
 #### Android
 
-Make sure your Android repositories can resolve `com.swmansion:detour`.  
-For local development this usually means adding `mavenLocal()` in your app's Gradle repositories and publishing Android SDK locally.
+Make sure your Android repositories can resolve `com.swmansion:detour` (for example via `google()` and `mavenCentral()` in your project repositories block).
 
 #### iOS
 
-If `Detour` pod is not in your remote specs yet, point `Podfile` to local `ios-detour` checkout:
-
-```ruby
-target 'Runner' do
-  use_frameworks!
-
-  detour_sdk_path = File.expand_path('../path/to/ios-detour', __dir__)
-  if File.exist?(File.join(detour_sdk_path, 'Detour.podspec'))
-    pod 'Detour', :path => detour_sdk_path
-  end
-
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-end
-```
+Make sure CocoaPods can resolve the `Detour` pod (`>= 0.1.0`) from your configured specs sources.
 
 Run pods:
 
