@@ -1,29 +1,56 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'detour_flutter_plugin_method_channel.dart';
+import 'src/models.dart';
 
 abstract class DetourFlutterPluginPlatform extends PlatformInterface {
-  /// Constructs a DetourFlutterPluginPlatform.
   DetourFlutterPluginPlatform() : super(token: _token);
 
   static final Object _token = Object();
 
-  static DetourFlutterPluginPlatform _instance = MethodChannelDetourFlutterPlugin();
+  static DetourFlutterPluginPlatform _instance =
+      MethodChannelDetourFlutterPlugin();
 
-  /// The default instance of [DetourFlutterPluginPlatform] to use.
-  ///
-  /// Defaults to [MethodChannelDetourFlutterPlugin].
   static DetourFlutterPluginPlatform get instance => _instance;
 
-  /// Platform-specific implementations should set this with their own
-  /// platform-specific class that extends [DetourFlutterPluginPlatform] when
-  /// they register themselves.
   static set instance(DetourFlutterPluginPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
   }
 
-  Future<String?> getPlatformVersion() {
-    throw UnimplementedError('platformVersion() has not been implemented.');
+  Future<void> configure(DetourConfig config) {
+    throw UnimplementedError('configure() has not been implemented.');
+  }
+
+  Future<DetourResult> resolveInitialLink() {
+    throw UnimplementedError('resolveInitialLink() has not been implemented.');
+  }
+
+  Future<DetourResult> processLink(String url) {
+    throw UnimplementedError('processLink() has not been implemented.');
+  }
+
+  Stream<DetourResult> get linkStream {
+    throw UnimplementedError('linkStream has not been implemented.');
+  }
+
+  Future<void> resetSession({bool allowDeferredRetry = false}) {
+    throw UnimplementedError('resetSession() has not been implemented.');
+  }
+
+  Future<void> mountAnalytics() {
+    throw UnimplementedError('mountAnalytics() has not been implemented.');
+  }
+
+  Future<void> unmountAnalytics() {
+    throw UnimplementedError('unmountAnalytics() has not been implemented.');
+  }
+
+  Future<void> logEvent(String eventName, {Map<String, dynamic>? data}) {
+    throw UnimplementedError('logEvent() has not been implemented.');
+  }
+
+  Future<void> logRetention(String eventName) {
+    throw UnimplementedError('logRetention() has not been implemented.');
   }
 }

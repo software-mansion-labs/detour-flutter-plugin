@@ -1,14 +1,49 @@
-// You have generated a new plugin project without specifying the `--platforms`
-// flag. A plugin project with no platform support was generated. To add a
-// platform, run `flutter create -t plugin --platforms <platforms> .` under the
-// same directory. You can also find a detailed instruction on how to add
-// platforms in the `pubspec.yaml` at
-// https://flutter.dev/to/pubspec-plugin-platforms.
-
+import 'src/models.dart';
 import 'detour_flutter_plugin_platform_interface.dart';
 
+export 'src/models.dart';
+
 class DetourFlutterPlugin {
-  Future<String?> getPlatformVersion() {
-    return DetourFlutterPluginPlatform.instance.getPlatformVersion();
+  Future<void> configure(DetourConfig config) {
+    return DetourFlutterPluginPlatform.instance.configure(config);
+  }
+
+  Future<DetourResult> resolveInitialLink() {
+    return DetourFlutterPluginPlatform.instance.resolveInitialLink();
+  }
+
+  Future<DetourResult> processLink(String url) {
+    return DetourFlutterPluginPlatform.instance.processLink(url);
+  }
+
+  Stream<DetourResult> get linkStream =>
+      DetourFlutterPluginPlatform.instance.linkStream;
+
+  Future<void> resetSession({bool allowDeferredRetry = false}) {
+    return DetourFlutterPluginPlatform.instance.resetSession(
+      allowDeferredRetry: allowDeferredRetry,
+    );
+  }
+
+  Future<void> mountAnalytics() {
+    return DetourFlutterPluginPlatform.instance.mountAnalytics();
+  }
+
+  Future<void> unmountAnalytics() {
+    return DetourFlutterPluginPlatform.instance.unmountAnalytics();
+  }
+
+  Future<void> logEvent(
+    String eventName, {
+    Map<String, dynamic>? data,
+  }) {
+    return DetourFlutterPluginPlatform.instance.logEvent(
+      eventName,
+      data: data,
+    );
+  }
+
+  Future<void> logRetention(String eventName) {
+    return DetourFlutterPluginPlatform.instance.logRetention(eventName);
   }
 }
