@@ -42,10 +42,10 @@ flutter pub get
 
 ### Native SDK dependencies
 
-This plugin is a bridge over native Detour SDK artifacts:
+This plugin uses native Detour SDK implementations:
 
 - Android: `com.swmansion:detour:0.1.0`
-- iOS: `Detour` pod (`>= 0.1.0`)
+- iOS: embedded in this plugin package (no extra pod dependency)
 
 #### Android
 
@@ -53,7 +53,7 @@ Make sure your Android repositories can resolve `com.swmansion:detour` (for exam
 
 #### iOS
 
-Make sure CocoaPods can resolve the `Detour` pod (`>= 0.1.0`) from your configured specs sources.
+No additional setup is required for the native iOS SDK dependency.
 
 Run pods:
 
