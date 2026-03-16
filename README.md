@@ -2,212 +2,315 @@
 
 # Flutter Detour
 
-SDK for handling deferred links in Flutter.
+Flutter SDK for handling deferred deep links with native Detour SDKs on Android and iOS.
 
-## Create an account
+## Documentation
 
-You need a Detour account to generate app credentials and configure your links.
-Sign up here: [https://godetour.dev/auth/signup](https://godetour.dev/auth/signup)
+Check out our documentation page for integration guides and API details:
 
-## Quick links
+- Docs home: [https://docs.swmansion.com/detour/docs/](https://docs.swmansion.com/detour/docs/)
+- Flutter installation guide: [https://docs.swmansion.com/detour/docs/sdk/flutter/sdk-installation](https://docs.swmansion.com/detour/docs/sdk/flutter/sdk-installation)
 
-- Documentation: [https://docs.swmansion.com/detour/docs/](https://docs.swmansion.com/detour/docs/)
-- Installation guide: [https://docs.swmansion.com/detour/docs/flutter-sdk/flutter-sdk-installation](https://docs.swmansion.com/detour/docs/flutter-sdk/flutter-sdk-installation)
+## Other Detour SDKs
+
+Detour is also available for other app stacks:
+
+- Android SDK: [https://github.com/software-mansion-labs/android-detour](https://github.com/software-mansion-labs/android-detour)
+- iOS SDK: [https://github.com/software-mansion-labs/ios-detour](https://github.com/software-mansion-labs/ios-detour)
+- React Native SDK: [https://github.com/software-mansion-labs/react-native-detour](https://github.com/software-mansion-labs/react-native-detour)
+
+## Create account on platform
+
+Create account and configure your links: [https://godetour.dev/auth/signup](https://godetour.dev/auth/signup)
 
 ## Installation
+
+### Package
 
 Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  detour_flutter_plugin: ^0.0.1
+  detour_flutter_plugin: ^0.1.0
 ```
 
-Then run:
+Install dependencies:
 
 ```sh
 flutter pub get
 ```
 
-No additional dependencies are required. Platform-specific setup (install referrer on Android, Universal Links and clipboard on iOS) is handled by the plugin automatically.
+### Native SDK dependencies
+
+This plugin is a bridge over native Detour SDK artifacts:
+
+- Android: `com.swmansion:detour:0.1.0`
+- iOS: `Detour` pod (`>= 0.1.0`)
+
+#### Android
+
+Make sure your Android repositories can resolve `com.swmansion:detour` (for example via `google()` and `mavenCentral()` in your project repositories block).
+
+#### iOS
+
+Make sure CocoaPods can resolve the `Detour` pod (`>= 0.1.0`) from your configured specs sources.
+
+Run pods:
+
+```sh
+cd ios
+pod install
+cd ..
+```
 
 ## Usage
 
-### Initialize the plugin
+### Recommended integration with `DetourService`
 
-Create a single `DetourFlutterPlugin` instance and call `configure()` once at app startup:
+`DetourService` is the recommended orchestration layer. It:
+
+- configures SDK once,
+- merges initial and runtime link handling into a single pending intent,
+- exposes readiness via `isInitialLinkProcessed`,
+- uses explicit consume semantics with `consumePendingIntent()`,
+- suppresses short-window duplicate emissions.
 
 ```dart
 import 'package:detour_flutter_plugin/detour_flutter_plugin.dart';
 
-final _detour = DetourFlutterPlugin();
+final detour = DetourService();
 
-await _detour.configure(
-  const DetourConfig(
-    apiKey: '<REPLACE_WITH_YOUR_API_KEY>',
-    appID: '<REPLACE_WITH_APP_ID_FROM_PLATFORM>',
-    shouldUseClipboard: true,
-  ),
-);
-```
+@override
+void initState() {
+  super.initState();
+  detour.addListener(_onDetourChanged);
+  _startDetour();
+}
 
-### Resolve the initial link (deferred deep links)
+Future<void> _startDetour() async {
+  await detour.start(
+    const DetourConfig(
+      apiKey: '<REPLACE_WITH_YOUR_API_KEY>',
+      appID: '<REPLACE_WITH_APP_ID_FROM_PLATFORM>',
+      shouldUseClipboard: true,
+      linkProcessingMode: LinkProcessingMode.all,
+    ),
+  );
+}
 
-```dart
-final result = await _detour.resolveInitialLink();
+void _onDetourChanged() {
+  final intent = detour.pendingIntent;
+  if (intent == null) return;
 
-if (result.link != null) {
-  navigateTo(result.link!.route);
+  // Route once, then mark as consumed.
+  // context.go(intent.link.route);
+  detour.consumePendingIntent();
+}
+
+@override
+void dispose() {
+  detour.removeListener(_onDetourChanged);
+  detour.dispose();
+  super.dispose();
 }
 ```
 
-### Listen for runtime links
+### Link processing mode
 
-```dart
-final _linkSub = _detour.linkStream.listen((result) {
-  if (result.link != null) {
-    navigateTo(result.link!.route);
-  }
-});
+Use `linkProcessingMode` to control which sources are handled by SDK:
 
-// Cancel in dispose()
-_linkSub.cancel();
-```
-
-### Full example
-
-```dart
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:detour_flutter_plugin/detour_flutter_plugin.dart';
-
-class _MyAppState extends State<MyApp> {
-  final _detour = DetourFlutterPlugin();
-  StreamSubscription<DetourResult>? _linkSub;
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    await _detour.configure(
-      const DetourConfig(
-        apiKey: '<REPLACE_WITH_YOUR_API_KEY>',
-        appID: '<REPLACE_WITH_APP_ID_FROM_PLATFORM>',
-        shouldUseClipboard: true,
-      ),
-    );
-
-    final initial = await _detour.resolveInitialLink();
-    if (initial.link != null) {
-      navigateTo(initial.link!.route);
-    }
-
-    _linkSub = _detour.linkStream.listen((result) {
-      if (result.link != null) {
-        navigateTo(result.link!.route);
-      }
-    });
-
-    await _detour.mountAnalytics();
-  }
-
-  @override
-  void dispose() {
-    _linkSub?.cancel();
-    super.dispose();
-  }
-}
-```
-
-Learn more about usage from our [docs](https://docs.swmansion.com/detour/docs/flutter-sdk/flutter-sdk-usage).
-
-### Controlling which links Detour processes
-
-Use `linkProcessingMode` to control which link sources the SDK listens to:
-
-| Value | Universal/App Links | Deferred links | Custom scheme links |
+| Value | Universal/App links | Deferred links | Custom scheme links |
 |---|---|---|---|
 | `LinkProcessingMode.all` (default) | ✅ | ✅ | ✅ |
 | `LinkProcessingMode.webOnly` | ✅ | ✅ | ❌ |
 | `LinkProcessingMode.deferredOnly` | ❌ | ✅ | ❌ |
 
+### Custom scheme runtime links
+
+Custom scheme links require:
+
+- `linkProcessingMode: LinkProcessingMode.all`
+- native registration on each platform
+
+Android (`AndroidManifest.xml`):
+
+```xml
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="detour-flutter-example" />
+</intent-filter>
+```
+
+iOS (`Info.plist`):
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>detour-flutter-example</string>
+    </array>
+  </dict>
+</array>
+```
+
+Test commands:
+
+```sh
+# Android
+adb shell am start -a android.intent.action.VIEW \
+  -d "detour-flutter-example://products/42?source=scheme" \
+  <your.package.name>
+
+# iOS Simulator
+xcrun simctl openurl booted "detour-flutter-example://products/42?source=scheme"
+```
+
+### Low-level API
+
+If you need full manual control, use `DetourFlutterPlugin` directly:
+
 ```dart
-await _detour.configure(
+final plugin = DetourFlutterPlugin();
+
+await plugin.configure(
   const DetourConfig(
     apiKey: '<REPLACE_WITH_YOUR_API_KEY>',
     appID: '<REPLACE_WITH_APP_ID_FROM_PLATFORM>',
-    // Process Universal/App links and deferred links, but let your own
-    // navigation layer handle custom scheme links (e.g. myapp://...).
-    linkProcessingMode: LinkProcessingMode.webOnly,
   ),
 );
+
+final initial = await plugin.resolveInitialLink();
+final stream = plugin.linkStream;
+final processed = await plugin.processLink('https://example.com/path');
+```
+
+## Analytics
+
+Flutter API follows native SDK analytics contract:
+
+- predefined events via `DetourEventName`,
+- retention events as string names.
+
+```dart
+await detour.logEvent(
+  DetourEventName.purchase,
+  data: {'value': 9.99, 'currency': 'USD'},
+);
+
+await detour.logRetention('home_screen_viewed');
 ```
 
 ## Types
 
-### DetourConfig
+### `DetourConfig`
 
 ```dart
 class DetourConfig {
-  /// Your API key from the Detour dashboard.
   final String apiKey;
-
-  /// Your app ID from the Detour dashboard.
   final String appID;
-
-  /// Whether to check the clipboard for a deferred link.
-  /// iOS-only — on Android the clipboard is never accessed.
-  /// Defaults to true.
   final bool shouldUseClipboard;
-
-  /// Controls which link sources are handled by the SDK.
-  /// - all: deferred links + Universal/App links + custom scheme links (default)
-  /// - webOnly: deferred links + Universal/App links, but NOT custom scheme links
-  /// - deferredOnly: only deferred links
   final LinkProcessingMode linkProcessingMode;
 }
 ```
 
-### DetourResult
+### `DetourIntent`
+
+```dart
+class DetourIntent {
+  final DetourLink link;
+  final DetourIntentSource source;
+  final DateTime receivedAt;
+}
+```
+
+### `DetourResult`
 
 ```dart
 class DetourResult {
-  /// true if this session has already been handled.
   final bool processed;
-
-  /// The resolved link, or null if nothing was matched.
   final DetourLink? link;
 }
 ```
 
-### DetourLink
+### `DetourLink`
 
 ```dart
 class DetourLink {
-  /// The original full URL.
   final String url;
-
-  /// Full route path including query string (e.g. '/details/42?campaign=summer').
   final String route;
-
-  /// Route path without query string (e.g. '/details/42').
   final String pathname;
-
-  /// Parsed query parameters (e.g. {'campaign': 'summer'}).
   final Map<String, String> params;
-
-  /// The type of the detected link:
-  /// - deferred: resolved from the Detour API on first app install
-  /// - verified: Universal Link (iOS) or App Link (Android)
-  /// - scheme: custom scheme deep link (only when linkProcessingMode is all)
   final LinkType type;
 }
 ```
 
----
+### `DetourEventName`
+
+```dart
+enum DetourEventName {
+  login,
+  search,
+  share,
+  signUp,
+  tutorialBegin,
+  tutorialComplete,
+  reEngage,
+  invite,
+  openedFromPushNotification,
+  addPaymentInfo,
+  addShippingInfo,
+  addToCart,
+  removeFromCart,
+  refund,
+  viewItem,
+  beginCheckout,
+  purchase,
+  adImpression,
+}
+```
+
+## API Reference
+
+### `DetourService`
+
+High-level integration helper:
+
+- `Future<void> start(DetourConfig config)`
+- `DetourIntent? get pendingIntent`
+- `void consumePendingIntent()`
+- `bool get isInitialLinkProcessed`
+- `Future<DetourResult> processLink(String url, {bool emitIntent = true})`
+- `Future<void> logEvent(DetourEventName eventName, {Map<String, dynamic>? data})`
+- `Future<void> logRetention(String eventName)`
+- `Future<void> stop()`
+
+### `DetourFlutterPlugin`
+
+Low-level bridge API:
+
+- `Future<void> configure(DetourConfig config)`
+- `Future<DetourResult> resolveInitialLink()`
+- `Stream<DetourResult> get linkStream`
+- `Future<DetourResult> processLink(String url)`
+- `Future<void> logEvent(DetourEventName eventName, {Map<String, dynamic>? data})`
+- `Future<void> logRetention(String eventName)`
+
+## Requirements
+
+- Dart: `^3.11.1`
+- Flutter: `>=3.3.0`
+- Android: min SDK 24
+- iOS: 13.0+
+
+## Example
+
+A complete integration example is available in this repo:
+
+- `example/`
 
 ## License
 
@@ -215,6 +318,6 @@ This library is licensed under [The MIT License](./LICENSE).
 
 ## Flutter Detour is created by Software Mansion
 
-Since 2012, [Software Mansion](https://swmansion.com) is a software agency with experience in building web and mobile apps. We are Core React Native Contributors and experts in dealing with all kinds of React Native issues. We can help you build your next dream product – [Hire us](https://swmansion.com/contact/projects?utm_source=detour&utm_medium=readme).
+Since 2012, [Software Mansion](https://swmansion.com) is a software agency with experience in building web and mobile apps. We are Core React Native Contributors and experts in dealing with all kinds of React Native issues. We can help you build your next dream product - [Hire us](https://swmansion.com/contact/projects?utm_source=detour&utm_medium=readme).
 
 [![swm](https://logo.swmansion.com/logo?color=white&variant=desktop&width=150&tag=react-native-executorch-github 'Software Mansion')](https://swmansion.com)

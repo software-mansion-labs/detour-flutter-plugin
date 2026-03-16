@@ -1,10 +1,12 @@
 import Flutter
 import UIKit
+import Detour
 
-public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLifeCycleDelegate {
+public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLifeCycleDelegate, FlutterSceneLifeCycleDelegate {
     private var config: DetourConfig?
     private var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     private var eventSink: FlutterEventSink?
+    private var pendingRuntimeURLs: [URL] = []
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let methodChannel = FlutterMethodChannel(
@@ -19,6 +21,14 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
         registrar.addMethodCallDelegate(instance, channel: methodChannel)
         eventChannel.setStreamHandler(instance)
         registrar.addApplicationDelegate(instance)
+        // Register for scene lifecycle callbacks when available (iOS 13+).
+        // Use selector-based invocation for backwards compatibility with older Flutter SDKs.
+        if let registrarObject = registrar as? NSObject {
+            let selector = NSSelectorFromString("addSceneDelegate:")
+            if registrarObject.responds(to: selector) {
+                _ = registrarObject.perform(selector, with: instance)
+            }
+        }
     }
 
     // MARK: - FlutterApplicationLifeCycleDelegate
@@ -36,12 +46,8 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
         open url: URL,
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
-        guard let config = self.config, let sink = self.eventSink else { return false }
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            let result = await Detour.shared.processLink(url, config: config)
-            sink(self.detourResultToMap(result))
-        }
+        guard shouldHandleSchemeRuntimeLink(url) else { return false }
+        emitOrQueueRuntimeURL(url)
         return true
     }
 
@@ -50,14 +56,65 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
         continue userActivity: NSUserActivity,
         restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
     ) -> Bool {
-        guard let config = self.config,
-              let sink = self.eventSink,
-              let url = userActivity.webpageURL else { return false }
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            let result = await Detour.shared.processLink(url, config: config)
-            sink(self.detourResultToMap(result))
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
+        guard let url = userActivity.webpageURL else { return false }
+        guard shouldHandleWebRuntimeLink(url) else { return false }
+
+        emitOrQueueRuntimeURL(url)
+        return true
+    }
+
+    // MARK: - FlutterSceneLifeCycleDelegate
+
+    @available(iOS 13.0, *)
+    public func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions?
+    ) -> Bool {
+        guard let connectionOptions else { return false }
+
+        var handled = false
+
+        for urlContext in connectionOptions.urlContexts {
+            if handleRuntimeURLCandidate(urlContext.url) {
+                handled = true
+            }
         }
+
+        for userActivity in connectionOptions.userActivities {
+            guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+                  let url = userActivity.webpageURL,
+                  shouldHandleWebRuntimeLink(url) else {
+                continue
+            }
+            emitOrQueueRuntimeURL(url)
+            handled = true
+        }
+
+        return handled
+    }
+
+    @available(iOS 13.0, *)
+    public func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool {
+        var handled = false
+
+        for urlContext in URLContexts {
+            if handleRuntimeURLCandidate(urlContext.url) {
+                handled = true
+            }
+        }
+
+        return handled
+    }
+
+    @available(iOS 13.0, *)
+    public func scene(_ scene: UIScene, continue userActivity: NSUserActivity) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
+        guard let url = userActivity.webpageURL else { return false }
+        guard shouldHandleWebRuntimeLink(url) else { return false }
+
+        emitOrQueueRuntimeURL(url)
         return true
     }
 
@@ -72,6 +129,7 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 return
             }
             self.config = config
+            flushPendingRuntimeURLsIfPossible()
             result(nil)
 
         case "resolveInitialLink":
@@ -103,30 +161,6 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 result(self.detourResultToMap(r))
             }
 
-        case "resetSession":
-            let args = call.arguments as? [String: Any]
-            let allowDeferredRetry = args?["allowDeferredRetry"] as? Bool ?? false
-            Task { @MainActor in
-                Detour.shared.resetSession(allowDeferredRetry: allowDeferredRetry)
-            }
-            result(nil)
-
-        case "mountAnalytics":
-            guard let config = self.config else {
-                result(FlutterError(code: "NOT_CONFIGURED", message: "Call configure() first", details: nil))
-                return
-            }
-            Task { @MainActor in
-                Detour.shared.mountAnalytics(config: config)
-            }
-            result(nil)
-
-        case "unmountAnalytics":
-            Task { @MainActor in
-                Detour.shared.unmountAnalytics()
-            }
-            result(nil)
-
         case "logEvent":
             guard let args = call.arguments as? [String: Any],
                   let eventName = args["eventName"] as? String else {
@@ -134,8 +168,12 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 return
             }
             let data = args["data"] as? [String: Any]
+            guard let typedEventName = DetourEventName(rawValue: eventName) else {
+                result(FlutterError(code: "UNSUPPORTED_EVENT", message: "Only predefined DetourEventName values are supported", details: nil))
+                return
+            }
             Task { @MainActor in
-                DetourAnalytics.logEvent(eventName, data: data)
+                DetourAnalytics.logEvent(typedEventName, data: data)
             }
             result(nil)
 
@@ -191,6 +229,89 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
             linkProcessingMode: mode
         )
     }
+
+    private func shouldHandleSchemeRuntimeLink(_ url: URL) -> Bool {
+        guard !isWebURL(url) else { return false }
+        guard !isInfrastructureURL(url) else { return false }
+        guard config?.linkProcessingMode != .webOnly else { return false }
+        guard config?.linkProcessingMode != .deferredOnly else { return false }
+        return true
+    }
+
+    private func shouldHandleWebRuntimeLink(_ url: URL) -> Bool {
+        guard isWebURL(url) else { return false }
+        guard !isInfrastructureURL(url) else { return false }
+        guard config?.linkProcessingMode != .deferredOnly else { return false }
+        return true
+    }
+
+    private func handleRuntimeURLCandidate(_ url: URL) -> Bool {
+        if shouldHandleWebRuntimeLink(url) || shouldHandleSchemeRuntimeLink(url) {
+            emitOrQueueRuntimeURL(url)
+            return true
+        }
+        return false
+    }
+
+    private func canProcessRuntimeURL(_ url: URL, with config: DetourConfig) -> Bool {
+        if isInfrastructureURL(url) {
+            return false
+        }
+
+        switch config.linkProcessingMode {
+        case .all:
+            return true
+        case .webOnly:
+            return isWebURL(url)
+        case .deferredOnly:
+            return false
+        }
+    }
+
+    private func isWebURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        return scheme == "http" || scheme == "https"
+    }
+
+    private func isInfrastructureURL(_ url: URL) -> Bool {
+        let raw = url.absoluteString
+        return raw.isEmpty || raw == "about:blank"
+    }
+
+    private func emitOrQueueRuntimeURL(_ url: URL) {
+        guard let config = self.config, let sink = self.eventSink else {
+            pendingRuntimeURLs.append(url)
+            return
+        }
+
+        guard canProcessRuntimeURL(url, with: config) else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            let result = await Detour.shared.processLink(url, config: config)
+            sink(self.detourResultToMap(result))
+        }
+    }
+
+    private func flushPendingRuntimeURLsIfPossible() {
+        guard let config = self.config, let sink = self.eventSink else { return }
+        guard !pendingRuntimeURLs.isEmpty else { return }
+
+        let queued = pendingRuntimeURLs
+        pendingRuntimeURLs.removeAll()
+
+        for url in queued {
+            guard canProcessRuntimeURL(url, with: config) else { continue }
+
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                let result = await Detour.shared.processLink(url, config: config)
+                sink(self.detourResultToMap(result))
+            }
+        }
+    }
 }
 
 // MARK: - FlutterStreamHandler
@@ -198,6 +319,7 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
 extension DetourFlutterPlugin: FlutterStreamHandler {
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
+        flushPendingRuntimeURLsIfPossible()
         return nil
     }
 

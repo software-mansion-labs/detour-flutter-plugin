@@ -1,27 +1,26 @@
 import Flutter
-import UIKit
 import XCTest
-
 
 @testable import detour_flutter_plugin
 
-// This demonstrates a simple unit test of the Swift portion of this plugin's implementation.
-//
-// See https://developer.apple.com/documentation/xctest for more information about using XCTest.
-
 class RunnerTests: XCTestCase {
-
-  func testGetPlatformVersion() {
+  func testConfigureWithoutRequiredArgsReturnsInvalidArgs() {
     let plugin = DetourFlutterPlugin()
+    let call = FlutterMethodCall(methodName: "configure", arguments: [:])
 
-    let call = FlutterMethodCall(methodName: "getPlatformVersion", arguments: [])
+    let resultExpectation = expectation(description: "result block must be called")
 
-    let resultExpectation = expectation(description: "result block must be called.")
     plugin.handle(call) { result in
-      XCTAssertEqual(result as! String, "iOS " + UIDevice.current.systemVersion)
+      guard let error = result as? FlutterError else {
+        XCTFail("Expected FlutterError")
+        resultExpectation.fulfill()
+        return
+      }
+
+      XCTAssertEqual(error.code, "INVALID_ARGS")
       resultExpectation.fulfill()
     }
+
     waitForExpectations(timeout: 1)
   }
-
 }
