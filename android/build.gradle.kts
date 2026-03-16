@@ -1,5 +1,5 @@
 group = "com.swmansion.detour"
-version = "0.1.0"
+version = "1.0.1"
 
 buildscript {
     val kotlinVersion = "2.2.20"

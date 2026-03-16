@@ -1,6 +1,6 @@
 name: detour_flutter_plugin
 description: "Flutter bridge SDK for Detour deferred deep links and analytics."
-version: 0.1.0
+version: 1.0.1
 homepage: https://docs.swmansion.com/detour/docs/sdk/flutter/sdk-installation
 repository: https://github.com/software-mansion-labs/detour-flutter-plugin
 

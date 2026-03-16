@@ -1,7 +1,11 @@
-## 0.1.0
+## 1.0.1
+
+* Fix Android Maven dependency coordinates to `com.swmansion.detour:detour-sdk`.
+
+## 1.0.0
 
 * Refactor plugin into a thin bridge over native Detour SDKs.
-* Android now consumes `com.swmansion:detour` instead of embedded native implementation.
+* Android now consumes `com.swmansion.detour:detour-sdk` instead of embedded native implementation.
 * iOS now consumes `Detour` CocoaPod instead of embedded native implementation.
 * Remove Flutter API methods without 1:1 native equivalent: `mountAnalytics`, `unmountAnalytics`, `resetSession`.
 * `logEvent` now accepts only predefined `DetourEventName` values.
