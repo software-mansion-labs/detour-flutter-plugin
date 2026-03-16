@@ -1,3 +1,9 @@
+## 1.0.0
+
+* Stable release.
+* Set up automated pub.dev publishing via GitHub Actions (OIDC).
+* Clean up `pubspec.yaml`: add topics, issue tracker, remove boilerplate.
+
 ## 0.1.0
 
 * Refactor plugin into a thin bridge over native Detour SDKs.

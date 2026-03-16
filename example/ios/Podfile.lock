@@ -1,5 +1,5 @@
 PODS:
-  - detour_flutter_plugin (0.1.0):
+  - detour_flutter_plugin (1.0.0):
     - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
@@ -19,7 +19,7 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
-  detour_flutter_plugin: 9349131c90ab69d20a4909c41976d6b55c9ef22c
+  detour_flutter_plugin: 949853c21184cb43de2d27afe48d6afccb11e705
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
 

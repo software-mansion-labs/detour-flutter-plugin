@@ -1,5 +1,5 @@
 group = "com.swmansion.detour"
-version = "0.1.0"
+version = "1.0.0"
 
 buildscript {
     val kotlinVersion = "2.2.20"
@@ -71,7 +71,7 @@ android {
 }
 
 dependencies {
-    implementation("com.swmansion:detour:0.1.0")
+    implementation("com.swmansion.detour:detour-sdk:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

@@ -31,7 +31,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  detour_flutter_plugin: ^0.1.0
+  detour_flutter_plugin: ^1.0.0
 ```
 
 Install dependencies:
@@ -44,7 +44,7 @@ flutter pub get
 
 This plugin uses native Detour SDK implementations:
 
-- Android: `com.swmansion:detour:0.1.0`
+- Android: `com.swmansion.detour:detour-sdk:1.0.0`
 - iOS: embedded in this plugin package (no extra pod dependency)
 
 #### Android
