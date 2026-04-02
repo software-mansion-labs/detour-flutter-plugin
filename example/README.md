@@ -66,7 +66,7 @@ This example demonstrates a full integration of `detour_flutter_plugin` with the
 
 ## Quick start
 
-1. Configure this app in the [Detour Dashboard](https://godetour.dev). You'll need:
+1. **Create an app in the [Detour Dashboard](https://godetour.dev).** You'll need:
    - **Android package name:** `com.example.detour_flutter_plugin_example` — and the **SHA256 certificate fingerprint** from your debug keystore:
      ```shell
      keytool -list -v \
@@ -77,31 +77,33 @@ This example demonstrates a full integration of `detour_flutter_plugin` with the
        | grep "SHA256"
      ```
      > The debug certificate is machine-specific — each developer must register their own fingerprint. For a release build, use your release keystore and its alias instead.
-   - **iOS bundle ID:** `com.example.detourFlutterPluginExample`
+   - **iOS bundle ID:** `com.example.detourFlutterPluginExample` and your **Apple Team ID** (found in Xcode under Runner → Signing & Capabilities, or at [developer.apple.com/account](https://developer.apple.com/account))
 
-2. Add your credentials from the Dashboard:
+2. **Add your credentials from the Dashboard:**
    ```shell
    cp .env.example .env
    # then edit .env with your DETOUR_API_KEY and DETOUR_APP_ID
    ```
 
-3. Update integration config with your own values:
-   - Universal Link `intent-filter` in `android/app/src/main/AndroidManifest.xml`
-   - Associated Domains in `ios/Runner/Runner.entitlements`
-   - Custom scheme in:
+3. **iOS signing setup** — open `ios/Runner.xcworkspace` in Xcode, select the **Runner** target → **Signing & Capabilities**, and set your **Team**. The `DEVELOPMENT_TEAM` in the project is intentionally left blank so each developer can use their own Apple Developer account.
+
+4. **Update link configuration** with values matching your Dashboard app:
+   - **Associated Domains** — replace `YOUR_DOMAIN` in `ios/Runner/Runner.entitlements` with your link domain (e.g. `applinks:yourapp.godetour.link` or `applinks:links.yourdomain.com`). For development, append `?mode=developer` to bypass Apple's CDN cache.
+   - **Universal Link / App Link intent filter** — update the `<data android:host="...">` in `android/app/src/main/AndroidManifest.xml`.
+   - **Custom scheme** (optional) — change `detour-flutter-example` in both:
      - `android/app/src/main/AndroidManifest.xml` (`<data android:scheme="...">`)
      - `ios/Runner/Info.plist` (`CFBundleURLSchemes`)
 
-4. (Optionaly) To test `Process Test Link`, modify the `_processTestLink` function in `example/lib/main.dart` with a link that matches your Detour dashboard setup.
+5. **(Optional)** To test `Process Test Link`, modify the `_processTestLink` function in `lib/main.dart` with a link that matches your Detour Dashboard setup.
 
-5. Install dependencies and run:
+6. **Install dependencies and run:**
    ```shell
    flutter pub get
    flutter run -d <device-id>
    ```
    iOS only — install CocoaPods first:
    ```shell
-   flutter precache --ios && cd ios && pod install && cd ..
+   cd ios && pod install && cd ..
    ```
 
-6. Trigger test links: **deferred** — copy the link from Detour Dashboard before a fresh install, then install and launch. **Universal Link / app link** — open the link while the app is running or from cold start. **Custom scheme** — use the commands from steps 5 and 7 in **Test flow**.
+7. **Trigger test links:** **deferred** — copy the link from Detour Dashboard before a fresh install, then install and launch. **Universal Link / App Link** — open the link while the app is running or from cold start. **Custom scheme** — use the commands from steps 5 and 7 in **Test flow**.
