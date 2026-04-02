@@ -1,3 +1,9 @@
+## 1.1.0
+
+* iOS native SDK is now consumed via CocoaPods (`Detour ~> 1.0.1`) instead of bundled source files.
+* Remove embedded iOS SDK sources (`ios/Sources/Detour/`).
+* Improve example app with configurable placeholders and setup documentation.
+
 ## 1.0.1
 
 * Fix Android Maven dependency coordinates to `com.swmansion.detour:detour-sdk`.

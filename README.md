@@ -35,7 +35,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  detour_flutter_plugin: ^1.0.1
+  detour_flutter_plugin: ^1.1.0
 ```
 
 Install dependencies:
