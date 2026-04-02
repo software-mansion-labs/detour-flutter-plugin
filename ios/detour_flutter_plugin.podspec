@@ -13,8 +13,9 @@ Flutter bridge plugin for Detour deferred deep links and analytics.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Software Mansion' => 'contact@godetour.com' }
   s.source           = { :path => '.' }
-  s.source_files     = ['Classes/**/*.swift', 'Sources/Detour/**/*.swift']
+  s.source_files     = 'Classes/**/*.swift'
   s.dependency 'Flutter'
+  s.dependency 'Detour', '~> 1.0.1'
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.

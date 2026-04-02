@@ -3,5 +3,9 @@
 <plist version="1.0">
 <dict>
 	<!-- Add all Detour Associated Domains below (one entry per domain). -->
+<key>com.apple.developer.associated-domains</key>
+<array>
+  <string>applinks:YOUR_DOMAIN</string>
+</array>
 </dict>
 </plist>

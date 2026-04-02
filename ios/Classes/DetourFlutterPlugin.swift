@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import Detour
 
 public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLifeCycleDelegate, FlutterSceneLifeCycleDelegate {
     private var config: DetourConfig?
