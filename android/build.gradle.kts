@@ -1,5 +1,5 @@
 group = "com.swmansion.detour"
-version = "1.1.0"
+version = "1.1.1"
 
 buildscript {
     val kotlinVersion = "2.2.20"
@@ -28,6 +28,7 @@ plugins {
 
 android {
     namespace = "com.swmansion.detour"
+    val flutterSdkHeaderValue = "flutter/$version"
 
     compileSdk = 36
 
@@ -51,6 +52,11 @@ android {
 
     defaultConfig {
         minSdk = 24
+        buildConfigField("String", "FLUTTER_SDK_HEADER_VALUE", "\"$flutterSdkHeaderValue\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     testOptions {
@@ -71,7 +77,7 @@ android {
 }
 
 dependencies {
-    implementation("com.swmansion.detour:detour-sdk:1.0.0")
+    implementation("com.swmansion.detour:detour-sdk:1.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

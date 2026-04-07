@@ -89,10 +89,7 @@ class DetourService extends ChangeNotifier {
 
   /// Processes an arbitrary URL through native SDK and optionally emits
   /// a navigation intent.
-  Future<DetourResult> processLink(
-    String url, {
-    bool emitIntent = true,
-  }) async {
+  Future<DetourResult> processLink(String url, {bool emitIntent = true}) async {
     final result = await _platform.processLink(url);
     if (emitIntent) {
       _registerResult(result, source: DetourIntentSource.manual);
@@ -145,11 +142,7 @@ class DetourService extends ChangeNotifier {
     final now = DateTime.now();
     _evictExpiredDedupeEntries(now);
 
-    final intent = DetourIntent(
-      link: link,
-      source: source,
-      receivedAt: now,
-    );
+    final intent = DetourIntent(link: link, source: source, receivedAt: now);
 
     final previous = _recentEmissions[intent.dedupeKey];
     if (previous != null &&

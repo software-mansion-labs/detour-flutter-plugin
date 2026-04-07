@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'detour_flutter_plugin'
-  s.version          = '1.1.0'
+  s.version          = '1.1.1'
   s.summary          = 'Flutter bridge for Detour native SDKs.'
   s.description      = <<-DESC
 Flutter bridge plugin for Detour deferred deep links and analytics.
@@ -15,7 +15,7 @@ Flutter bridge plugin for Detour deferred deep links and analytics.
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*.swift'
   s.dependency 'Flutter'
-  s.dependency 'Detour', '~> 1.0.1'
+  s.dependency 'Detour', '~> 1.0.2'
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.
