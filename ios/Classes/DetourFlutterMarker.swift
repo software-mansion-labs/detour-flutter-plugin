@@ -1,3 +1,7 @@
+// CONTRACT: The native iOS SDK (DetourIOS) discovers this class by name via
+// NSClassFromString in DetourConstants.swift. Do NOT rename this class or the
+// sdkHeaderValue property without updating the native SDK.
+
 import Foundation
 
 // Native iOS SDK looks up this marker class and reads the final X-SDK value directly.
