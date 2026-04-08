@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../detour_flutter_plugin_platform_interface.dart';
 import 'models.dart';
+import 'supported_platform.dart';
 
 /// Origin of a resolved Detour link emitted by [DetourService].
 enum DetourIntentSource {
@@ -72,6 +73,12 @@ class DetourService extends ChangeNotifier {
   /// Safe to call multiple times; only first call starts the service.
   Future<void> start(DetourConfig config) async {
     if (_started) return;
+    if (!isSupportedPlatform) {
+      debugPrint('Detour: unsupported platform, skipping initialization');
+      _isInitialLinkProcessed = true;
+      notifyListeners();
+      return;
+    }
 
     await _platform.configure(config);
     _started = true;
