@@ -20,6 +20,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   final _detourService = DetourService();
 
   DetourIntent? _initialIntent;
@@ -92,6 +93,12 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+  void _showSnackBar(String message) {
+    _scaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   Future<void> _processTestLink() async {
     try {
       final result = await _detourService.processLink(
@@ -100,9 +107,11 @@ class _MyAppState extends State<MyApp> {
       );
       if (!mounted) return;
       setState(() => _processedResult = result);
+      _showSnackBar('processLink completed (processed: ${result.processed})');
     } on PlatformException catch (e) {
       if (!mounted) return;
       setState(() => _status = 'processLink error: ${e.message}');
+      _showSnackBar('processLink error: ${e.message}');
     }
   }
 
@@ -113,17 +122,20 @@ class _MyAppState extends State<MyApp> {
     );
     if (!mounted) return;
     setState(() => _status = 'logEvent sent');
+    _showSnackBar('logEvent sent (purchase)');
   }
 
   Future<void> _logRetention() async {
     await _detourService.logRetention('home_screen_viewed');
     if (!mounted) return;
     setState(() => _status = 'logRetention sent');
+    _showSnackBar('logRetention sent (home_screen_viewed)');
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       home: Scaffold(
         appBar: AppBar(title: const Text('Detour Flutter Plugin')),
         body: SingleChildScrollView(
