@@ -1,7 +1,9 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'detour_flutter_plugin_method_channel.dart';
+import 'detour_flutter_plugin_noop.dart';
 import 'src/models.dart';
+import 'src/supported_platform.dart';
 
 abstract class DetourFlutterPluginPlatform extends PlatformInterface {
   DetourFlutterPluginPlatform() : super(token: _token);
@@ -9,7 +11,7 @@ abstract class DetourFlutterPluginPlatform extends PlatformInterface {
   static final Object _token = Object();
 
   static DetourFlutterPluginPlatform _instance =
-      MethodChannelDetourFlutterPlugin();
+      isSupportedPlatform ? MethodChannelDetourFlutterPlugin() : NoopDetourFlutterPlugin();
 
   static DetourFlutterPluginPlatform get instance => _instance;
 
