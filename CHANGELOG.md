@@ -1,3 +1,8 @@
+## 1.1.1
+
+* Override native `X-SDK` header to `flutter/<plugin-version>` when requests are made via the Flutter wrapper.
+* Update native SDK requirements to Android `1.0.1` and iOS `1.0.2`.
+
 ## 1.1.0
 
 * iOS native SDK is now consumed via CocoaPods (`Detour ~> 1.0.1`) instead of bundled source files.
