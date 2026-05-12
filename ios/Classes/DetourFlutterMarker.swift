@@ -9,5 +9,5 @@ import Foundation
 // in the host app bundle, so bundle-based version lookup would read the app version.
 @objc(DetourFlutterMarker)
 public final class DetourFlutterMarker: NSObject {
-    @objc public static let sdkHeaderValue = "flutter/1.1.1"
+    @objc public static let sdkHeaderValue = "flutter/1.2.0"
 }
