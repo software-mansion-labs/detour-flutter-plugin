@@ -1,3 +1,8 @@
+## 1.2.0
+
+* Improve universal link analytics.
+* Update native SDK requirements to Android `1.1.0` and iOS `1.1.0`.
+
 ## 1.1.1
 
 * Override native `X-SDK` header to `flutter/<plugin-version>` when requests are made via the Flutter wrapper.
