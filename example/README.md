@@ -1,109 +1,108 @@
-# Detour Flutter SDK — Example App
+# Detour Flutter Plugin — Example App
 
-This example demonstrates a full integration of `detour_flutter_plugin` with the recommended `DetourService` flow.
+This example demonstrates a full `DetourService` integration covering all three link types:
 
-## Scenario represented
+- **Deferred link** — resolved on first launch after install
+- **Universal/App Link** — http/https link handled while the app is installed
+- **Custom scheme link** — e.g. `detour-flutter-example://products/42`
 
-- `lib/main.dart`: initializes `DetourService` with `DetourConfig`, handles the pending intent queue (`initial` / `runtime` / `manual`) via `consumePendingIntent()`, and logs a `ReEngage` event on every link-driven open.
-- `android/app/src/main/AndroidManifest.xml`: app links intent filter plus optional custom scheme (`detour-flutter-example`).
-- `ios/Runner/Runner.entitlements`: Associated Domains entry for Universal Links.
-- `ios/Runner/AppDelegate.swift`: deep-link forwarding for URL schemes and Universal Links.
-- `ios/Runner/Info.plist`: custom scheme registration via `CFBundleURLTypes`.
+The app displays separate intent cards for initial, runtime, and manually processed links, and includes buttons for triggering analytics events.
 
-## What this example covers
+## Prerequisites
 
-- SDK initialization and `DetourService` lifecycle wiring.
-- Router-safe consume semantics via `consumePendingIntent()`.
-- Initial and runtime link handling without duplicate navigation.
-- Runtime handling for both verified web links and custom scheme links.
-- Manual processing via `processLink(url)`.
-- `LinkResult` handling: `Success` (with `route`, `pathname`, `params`, `type`), `NoLink`, `Error`.
-- Analytics:
-  - `main.dart` — `Detour.logEvent(ReEngage)` on every link-driven open, with `source` (from `LinkType.name`) and `route` properties.
-  - `main.dart` — `Detour.logEvent(...)` via `Log Event` button for manual event firing.
-  - `main.dart` — `Detour.logRetention(...)` via `Log Retention` button.
+You need a Detour account with an app configured for both Android and iOS. Sign up at [godetour.dev](https://godetour.dev/auth/signup) if you haven't already.
 
-## Test flow
+## Setup
 
-1) Start the app on a device or emulator.
-2) Confirm app reaches `Status: Ready` and `Initial processed: true`.
-3) Tap `Process Test Link` and verify:
-   - `processLink() Result` card is updated.
-   - `Manual Intent` card is updated.
+### 1. Create your app in the Detour Dashboard
 
-**Android**
+You will need:
 
-4) Trigger a runtime App link:
-   ```shell
-   adb shell am start -a android.intent.action.VIEW \
-     -d "https://<your-link-domain>/<link-token>" \
-     com.example.detour_flutter_plugin_example
-   ```
-   - `Runtime Intent` card updates. Type shows `VERIFIED`.
-   - Alternatively, paste the link into a browser on the device — Android will open the app directly if App Links are configured.
-5) Trigger a runtime custom scheme link:
-   ```shell
-   adb shell am start -a android.intent.action.VIEW \
-     -d "detour-flutter-example://products/42?source=scheme" \
-     com.example.detour_flutter_plugin_example
-   ```
-   - `Runtime Intent` card updates. Type shows `SCHEME`.
+- **Android:** package name `com.example.detour_flutter_plugin_example` and the SHA256 fingerprint of your debug keystore:
+  ```sh
+  keytool -list -v \
+    -keystore ~/.android/debug.keystore \
+    -alias androiddebugkey \
+    -storepass android -keypass android \
+    | grep "SHA256"
+  ```
+  > Each developer must register their own fingerprint — debug certificates are machine-specific.
 
-**iOS**
+- **iOS:** bundle ID `com.example.detourFlutterPluginExample` and your Apple Team ID (found in Xcode under Runner → Signing & Capabilities, or at [developer.apple.com/account](https://developer.apple.com/account))
 
-6) Trigger a runtime Universal Link (open in Safari or Notes) and verify `Runtime Intent` card updates with type `VERIFIED`.
-7) Trigger a runtime custom scheme link on simulator:
-   ```shell
-   xcrun simctl openurl booted "detour-flutter-example://products/42?source=scheme"
-   ```
-   - `Runtime Intent` card updates. Type shows `SCHEME`.
+### 2. Add your credentials
 
-**Both platforms**
+```sh
+cp .env.example .env
+# Edit .env with your DETOUR_API_KEY and DETOUR_APP_ID
+```
 
-8) For deferred link testing: uninstall the app, copy a Detour link from the Dashboard, then install and launch — the deferred link should resolve on first open.
+### 3. Configure link domains and schemes
 
-> **Verifying analytics:** once triggered, events appear under **Analytics → Events** in the [Detour Dashboard](https://godetour.dev). For local debugging on Android run `adb logcat | grep -i detour` to see SDK-level logs in real time.
+- **iOS Associated Domains** — replace `YOUR_DOMAIN` in `ios/Runner/Runner.entitlements` with your Detour link domain (e.g. `applinks:yourapp.godetour.link`). Append `?mode=developer` during development to bypass Apple's CDN cache.
+- **Android App Link host** — update `<data android:host="...">` in `android/app/src/main/AndroidManifest.xml`.
+- **Custom scheme** (optional) — change `detour-flutter-example` in both `android/app/src/main/AndroidManifest.xml` and `ios/Runner/Info.plist`.
 
-## Quick start
+### 4. iOS signing
 
-1. **Create an app in the [Detour Dashboard](https://godetour.dev).** You'll need:
-   - **Android package name:** `com.example.detour_flutter_plugin_example` — and the **SHA256 certificate fingerprint** from your debug keystore:
-     ```shell
-     keytool -list -v \
-       -keystore ~/.android/debug.keystore \
-       -alias androiddebugkey \
-       -storepass android \
-       -keypass android \
-       | grep "SHA256"
-     ```
-     > The debug certificate is machine-specific — each developer must register their own fingerprint. For a release build, use your release keystore and its alias instead.
-   - **iOS bundle ID:** `com.example.detourFlutterPluginExample` and your **Apple Team ID** (found in Xcode under Runner → Signing & Capabilities, or at [developer.apple.com/account](https://developer.apple.com/account))
+Open `ios/Runner.xcworkspace` in Xcode, select the **Runner** target → **Signing & Capabilities**, and set your Team.
 
-2. **Add your credentials from the Dashboard:**
-   ```shell
-   cp .env.example .env
-   # then edit .env with your DETOUR_API_KEY and DETOUR_APP_ID
-   ```
+### 5. Install dependencies and run
 
-3. **iOS signing setup** — open `ios/Runner.xcworkspace` in Xcode, select the **Runner** target → **Signing & Capabilities**, and set your **Team**. The `DEVELOPMENT_TEAM` in the project is intentionally left blank so each developer can use their own Apple Developer account.
+```sh
+flutter pub get
+flutter run -d <device-id>
+```
 
-4. **Update link configuration** with values matching your Dashboard app:
-   - **Associated Domains** — replace `YOUR_DOMAIN` in `ios/Runner/Runner.entitlements` with your link domain (e.g. `applinks:yourapp.godetour.link` or `applinks:links.yourdomain.com`). For development, append `?mode=developer` to bypass Apple's CDN cache.
-   - **Universal Link / App Link intent filter** — update the `<data android:host="...">` in `android/app/src/main/AndroidManifest.xml`.
-   - **Custom scheme** (optional) — change `detour-flutter-example` in both:
-     - `android/app/src/main/AndroidManifest.xml` (`<data android:scheme="...">`)
-     - `ios/Runner/Info.plist` (`CFBundleURLSchemes`)
+iOS only — install CocoaPods first:
 
-5. **(Optional)** To test `Process Test Link`, modify the `_processTestLink` function in `lib/main.dart` with a link that matches your Detour Dashboard setup.
+```sh
+cd ios && pod install && cd ..
+```
 
-6. **Install dependencies and run:**
-   ```shell
-   flutter pub get
-   flutter run -d <device-id>
-   ```
-   iOS only — install CocoaPods first:
-   ```shell
-   cd ios && pod install && cd ..
-   ```
+## Testing
 
-7. **Trigger test links:** **deferred** — copy the link from Detour Dashboard before a fresh install, then install and launch. **Universal Link / App Link** — open the link while the app is running or from cold start. **Custom scheme** — use the commands from steps 5 and 7 in **Test flow**.
+### Deferred link
+
+Uninstall the app, copy a link from the Detour Dashboard, open it on the device, then install and launch — the deferred link resolves on first open and appears in the **Initial Intent** card.
+
+### Universal/App Link
+
+Trigger while the app is running:
+
+```sh
+# Android
+adb shell am start -a android.intent.action.VIEW \
+  -d "https://<your-link-domain>/<link-token>" \
+  com.example.detour_flutter_plugin_example
+
+# iOS — open the link in Safari or Notes on the device
+```
+
+The **Runtime Intent** card updates with type `verified`.
+
+### Custom scheme
+
+```sh
+# Android
+adb shell am start -a android.intent.action.VIEW \
+  -d "detour-flutter-example://products/42?source=scheme" \
+  com.example.detour_flutter_plugin_example
+
+# iOS Simulator
+xcrun simctl openurl booted "detour-flutter-example://products/42?source=scheme"
+```
+
+The **Runtime Intent** card updates with type `scheme`.
+
+### Manual processing
+
+Tap **Process Test Link** in the app to call `processLink()` directly. The result appears in the **processLink() Result** card.
+
+### Analytics
+
+Use the **Log Event** and **Log Retention** buttons to fire analytics events. Events appear under **Analytics → Events** in the [Detour Dashboard](https://godetour.dev). For local debugging on Android:
+
+```sh
+adb logcat | grep -i detour
+```
