@@ -27,7 +27,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swmansion.detour"
+    namespace = "com.swmansion.detour.flutter"
     val flutterSdkHeaderValue = "flutter/$version"
 
     compileSdk = 36
@@ -52,6 +52,7 @@ android {
 
     defaultConfig {
         minSdk = 24
+        consumerProguardFiles("consumer-rules.pro")
         buildConfigField("String", "FLUTTER_SDK_HEADER_VALUE", "\"$flutterSdkHeaderValue\"")
     }
 

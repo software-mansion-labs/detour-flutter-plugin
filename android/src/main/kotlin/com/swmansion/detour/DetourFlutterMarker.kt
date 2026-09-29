@@ -4,6 +4,8 @@
 
 package com.swmansion.detour
 
+import com.swmansion.detour.flutter.BuildConfig
+
 // Native SDK detects this marker via reflection to tag requests as Flutter-originated.
 object DetourFlutterMarker {
     @JvmField
