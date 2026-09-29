@@ -26,7 +26,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  detour_flutter_plugin: ^1.2.0
+  detour_flutter_plugin: ^1.2.1
 ```
 
 Then run `flutter pub get`.
