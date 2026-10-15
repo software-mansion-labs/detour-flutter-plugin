@@ -12,6 +12,8 @@ The app displays separate intent cards for initial, runtime, and manually proces
 
 You need a Detour account with an app configured for both Android and iOS. Sign up at [godetour.dev](https://godetour.dev/auth/signup) if you haven't already.
 
+Building for iOS with Xcode 27 needs Flutter 3.44.8 or newer (3.47 or newer recommended). Older Flutter versions fail in `debug_unpack_ios` with `does not contain architectures "arm64 x86_64"` because of a `lipo` change in Xcode 27 ([flutter/flutter#188346](https://github.com/flutter/flutter/issues/188346)).
+
 ## Setup
 
 ### 1. Create your app in the Detour Dashboard
