@@ -1,3 +1,11 @@
+## 1.3.0
+
+- **Breaking:** minimum iOS version raised from 13.0 to 15.0, following the native iOS SDK. Set `platform :ios, '15.0'` (or higher) in your app's `Podfile`.
+- **Behavior change:** `route` and `pathname` stay percent-encoded on both platforms (`/hello%20world`, not `/hello world`). Decode them yourself if you compare them with plain strings.
+- Update native SDK requirements to Android `1.1.1` and iOS `1.1.2`.
+- Link parsing now works the same on Android and iOS. Params ignore the URL fragment (`?id=5#section` → `id: "5"`), and a stray `%` (`?a=50%off`) no longer breaks parsing.
+- iOS: the native SDK now ships its own privacy manifest. Deferred-link clipboard matching sends only the copied URL, not the text around it.
+
 ## 1.2.1
 
 - Fix Android release builds failing. The plugin's Android namespace is now `com.swmansion.detour.flutter`, so it no longer collides with the native SDK.
