@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'detour_flutter_plugin_platform_interface.dart';
+import 'src/event_name_rules.dart';
 import 'src/models.dart';
 
 class MethodChannelDetourFlutterPlugin extends DetourFlutterPluginPlatform {
@@ -53,6 +57,47 @@ class MethodChannelDetourFlutterPlugin extends DetourFlutterPluginPlatform {
       'eventName': eventName.rawValue,
       'data': data,
     });
+  }
+
+  @override
+  Future<void> logCustomEvent(
+    String eventName, {
+    Map<String, dynamic>? data,
+  }) async {
+    final problem = eventNameProblem(eventName);
+    if (problem != null) {
+      debugPrint('[Detour:ANALYTICS] Event "$eventName" dropped: $problem.');
+      return;
+    }
+
+    if (kDebugMode && data != null) {
+      _warnIfDataTooLarge(eventName, data);
+    }
+
+    await methodChannel.invokeMethod<void>('logEvent', {
+      'eventName': eventName,
+      'data': data,
+    });
+  }
+
+  // Debug-only, so the JSON length is a close enough stand-in for the server's byte count.
+  void _warnIfDataTooLarge(String eventName, Map<String, dynamic> data) {
+    final length = _jsonLength(data);
+    if (length != null && length > maxEventDataBytes) {
+      debugPrint(
+        '[Detour:ANALYTICS] Event "$eventName" has $length characters of data as JSON. '
+        'Detour stores at most $maxEventDataBytes bytes of data per event and may refuse larger events.',
+      );
+    }
+  }
+
+  // Data that can't be encoded fails when it is sent, and that logs the error.
+  int? _jsonLength(Map<String, dynamic> data) {
+    try {
+      return jsonEncode(data).length;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

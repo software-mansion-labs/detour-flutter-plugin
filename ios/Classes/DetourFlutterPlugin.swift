@@ -168,12 +168,8 @@ public class DetourFlutterPlugin: NSObject, FlutterPlugin, FlutterApplicationLif
                 return
             }
             let data = args["data"] as? [String: Any]
-            guard let typedEventName = DetourEventName(rawValue: eventName) else {
-                result(FlutterError(code: "UNSUPPORTED_EVENT", message: "Only predefined DetourEventName values are supported", details: nil))
-                return
-            }
             Task { @MainActor in
-                DetourAnalytics.logEvent(typedEventName, data: data)
+                DetourAnalytics.logEvent(eventName, data: data)
             }
             result(nil)
 

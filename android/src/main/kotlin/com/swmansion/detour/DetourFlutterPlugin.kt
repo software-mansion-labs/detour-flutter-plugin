@@ -17,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.swmansion.detour.analytics.DetourAnalytics
-import com.swmansion.detour.analytics.DetourEventNames
 import com.swmansion.detour.models.LinkProcessingMode
 import com.swmansion.detour.models.LinkResult
 
@@ -189,18 +188,7 @@ class DetourFlutterPlugin :
                     return
                 }
 
-                val enumValue = DetourEventNames.entries.firstOrNull { it.eventName == eventName }
-                if (enumValue == null) {
-                    result.error(
-                        "UNSUPPORTED_EVENT",
-                        "Android SDK supports predefined DetourEventNames only. Received: $eventName",
-                        null,
-                    )
-                    return
-                }
-
-                val data = args["data"]
-                DetourAnalytics.logEvent(enumValue, data)
+                DetourAnalytics.logEvent(eventName, args["data"])
                 result.success(null)
             }
 
