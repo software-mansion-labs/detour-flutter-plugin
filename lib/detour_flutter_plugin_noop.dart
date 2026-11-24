@@ -31,5 +31,11 @@ class NoopDetourFlutterPlugin extends DetourFlutterPluginPlatform {
   }) async {}
 
   @override
+  Future<void> logCustomEvent(
+    String eventName, {
+    Map<String, dynamic>? data,
+  }) async {}
+
+  @override
   Future<void> logRetention(String eventName) async {}
 }

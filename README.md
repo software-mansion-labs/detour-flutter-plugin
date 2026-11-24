@@ -35,7 +35,7 @@ Then run `flutter pub get`.
 
 This plugin uses native Detour SDK implementations:
 
-- Android: `com.swmansion.detour:detour-sdk:1.1.0`
+- Android: `com.swmansion.detour:detour-sdk:1.2.0`
 - iOS: `Detour` CocoaPod `~> 1.1.0` (pulled automatically via the plugin podspec)
 
 #### Android
@@ -197,10 +197,22 @@ await detour.logEvent(
   data: {'value': 9.99, 'currency': 'USD'},
 );
 
+await detour.logCustomEvent('level_complete', data: {'level': 3});
+
 await detour.logRetention('week_1');
 ```
 
 </details>
+
+`logEvent` takes a predefined `DetourEventName`. `logCustomEvent` logs an event under your own name, following the same rules as on the server:
+
+- Lowercase letters, digits and `_`, 1 to 64 characters (`^[a-z0-9_]{1,64}$`).
+- Names starting with `af_` or `dt_`, and `opened_via_universal_link`, are reserved.
+- An app can have up to 500 custom names. `DetourEventName` values don't count, and a name that's already registered keeps working once the limit is reached.
+- Keep names static. Put changing values such as IDs in `data`: `logCustomEvent('level_complete', data: {'level': 3})`, not `logCustomEvent('level_${id}_complete')`, which registers a new name for every level and soon reaches the limit.
+- `data` can be up to 2,048 bytes as JSON.
+
+`logCustomEvent` drops a name that breaks these rules and logs an error. When the server refuses an event, for example over the 500-name limit, the native SDK logs the server's reason.
 
 See the [analytics docs](https://detour.swmansion.com/docs/) for the full event list and retention tracking setup.
 
@@ -299,6 +311,7 @@ High-level integration helper (extends `ChangeNotifier`):
 - `void consumePendingIntent()`
 - `Future<DetourResult> processLink(String url, {bool emitIntent = true})`
 - `Future<void> logEvent(DetourEventName eventName, {Map<String, dynamic>? data})`
+- `Future<void> logCustomEvent(String eventName, {Map<String, dynamic>? data})`
 - `Future<void> logRetention(String eventName)`
 - `Future<void> stop()`
 
@@ -311,6 +324,7 @@ Low-level bridge API:
 - `Stream<DetourResult> get linkStream`
 - `Future<DetourResult> processLink(String url)`
 - `Future<void> logEvent(DetourEventName eventName, {Map<String, dynamic>? data})`
+- `Future<void> logCustomEvent(String eventName, {Map<String, dynamic>? data})`
 - `Future<void> logRetention(String eventName)`
 
 ## Example

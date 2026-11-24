@@ -125,6 +125,16 @@ class _MyAppState extends State<MyApp> {
     _showSnackBar('logEvent sent (purchase)');
   }
 
+  Future<void> _logCustomEvent() async {
+    await _detourService.logCustomEvent(
+      'level_complete',
+      data: {'level': 3},
+    );
+    if (!mounted) return;
+    setState(() => _status = 'logCustomEvent sent');
+    _showSnackBar('logCustomEvent sent (level_complete)');
+  }
+
   Future<void> _logRetention() async {
     await _detourService.logRetention('home_screen_viewed');
     if (!mounted) return;
@@ -168,6 +178,10 @@ class _MyAppState extends State<MyApp> {
                   ElevatedButton(
                     onPressed: _logEvent,
                     child: const Text('Log Event'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _logCustomEvent,
+                    child: const Text('Log Custom Event'),
                   ),
                   ElevatedButton(
                     onPressed: _logRetention,

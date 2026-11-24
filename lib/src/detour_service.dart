@@ -104,6 +104,17 @@ class DetourService extends ChangeNotifier {
     return _platform.logEvent(eventName, data: data);
   }
 
+  /// Logs an analytics event under a custom name. Custom names must match
+  /// `^[a-z0-9_]{1,64}$`. Names starting with `af_` or `dt_`, and
+  /// `opened_via_universal_link`, are reserved. An invalid name is dropped
+  /// and logged as an error.
+  Future<void> logCustomEvent(
+    String eventName, {
+    Map<String, dynamic>? data,
+  }) {
+    return _platform.logCustomEvent(eventName, data: data);
+  }
+
   Future<void> logRetention(String eventName) {
     return _platform.logRetention(eventName);
   }

@@ -40,6 +40,10 @@ abstract class DetourFlutterPluginPlatform extends PlatformInterface {
     throw UnimplementedError('logEvent() has not been implemented.');
   }
 
+  Future<void> logCustomEvent(String eventName, {Map<String, dynamic>? data}) {
+    throw UnimplementedError('logCustomEvent() has not been implemented.');
+  }
+
   Future<void> logRetention(String eventName) {
     throw UnimplementedError('logRetention() has not been implemented.');
   }

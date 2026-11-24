@@ -11,6 +11,7 @@ class MockDetourFlutterPluginPlatform
   DetourEventName? loggedEventName;
   Map<String, dynamic>? loggedEventData;
   String? retentionEvent;
+  String? loggedCustomEventName;
 
   @override
   Future<void> configure(DetourConfig config) async {
@@ -27,6 +28,15 @@ class MockDetourFlutterPluginPlatform
     Map<String, dynamic>? data,
   }) async {
     loggedEventName = eventName;
+    loggedEventData = data;
+  }
+
+  @override
+  Future<void> logCustomEvent(
+    String eventName, {
+    Map<String, dynamic>? data,
+  }) async {
+    loggedCustomEventName = eventName;
     loggedEventData = data;
   }
 
@@ -69,5 +79,16 @@ void main() {
 
     expect(fakePlatform.loggedEventName, DetourEventName.purchase);
     expect(fakePlatform.loggedEventData?['currency'], 'USD');
+  });
+
+  test('logCustomEvent forwards the name to platform implementation', () async {
+    final plugin = DetourFlutterPlugin();
+    final fakePlatform = MockDetourFlutterPluginPlatform();
+    DetourFlutterPluginPlatform.instance = fakePlatform;
+
+    await plugin.logCustomEvent('level_complete', data: {'level': 3});
+
+    expect(fakePlatform.loggedCustomEventName, 'level_complete');
+    expect(fakePlatform.loggedEventData?['level'], 3);
   });
 }
